@@ -1,0 +1,61 @@
+trigger:
+  - main
+
+pool:
+  name: Default
+
+stages:
+- stage: build
+  jobs: 
+  - job: build
+    pool:
+      name: Default
+    steps:
+    - task: Npm@1
+      inputs:
+        command: 'install'
+        workingDir: '.'
+        verbose: true
+
+    - task: Npm@1
+      inputs:
+        command: 'custom'
+        customCommand: "run build"
+     
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: 'build'     # ← folder created by npm run build
+        artifact: 'drop'
+        
+
+    
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+- stage: deploy
+  jobs: 
+  - job: deploy
+    pool:
+      name: Default 
+    steps:
+    
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: 'drop'
+        path: '$(System.DefaultWorkingDirectory)/drop'
+      displayName: 'Download build artifact'
+      
+    - task: AzureRmWebAppDeployment@5
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: 'Azure subscription 1 (38e3de81-c479-4f9d-b8c2-3e17f08ba615)'
+        appType: 'webAppLinux'
+        WebAppName: 'sandeepyoutube'
+        packageForLinux: '$(System.DefaultWorkingDirectory)/drop'
+        #packageForLinux: 'build/drop'
+        RuntimeStack: 'NODE|22-lts'
+        DeploymentTypeLinux: 'oneDeploy'
